@@ -1,0 +1,126 @@
+package miselico.clusteringLSH.runs.twistertriearticle;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+import miselico.clusteringLSH.input.preprocess.PreprocessTRC2;
+
+import com.google.common.io.Files;
+
+public class Main {
+
+	private static final void createDirs(File... dirs) {
+		for (File dir : dirs) {
+			if (!(dir.exists() || dir.mkdirs())) {
+				throw new Error("Creating the " + dir + " directory failed.");
+			}
+		}
+	}
+
+	/*
+	 * Structure:
+	 * ./data/cifar10
+	 * ./data/trc2
+	 * ./output/exp1_4/cifar10/
+	 * ./output/exp1_4/trc2/
+	 * ./output/timing/cifar10/
+	 * ./output/timing/trc2/
+	 * ./output/memory/cifar10/
+	 * ./output/memory/trc2/
+	 */
+	private static final File workingDirectory = new File(".");
+	private static final File dataDir = new File(Main.workingDirectory, "data");
+	private static final File cifar10Data = new File(Main.dataDir, "cifar10");
+	private static final File TRC2Data = new File(Main.dataDir, "trc2");
+
+	private static final File outputDir = new File(Main.workingDirectory, "output");
+	private static final File exp1_4output = new File(Main.outputDir, "exp1_4");
+	private static final File exp1_4_cifar_output = new File(Main.exp1_4output, "cifar10");
+	private static final File exp1_4_TRC2output = new File(Main.exp1_4output, "trc2");
+
+	private static final File timingOutput = new File(Main.outputDir, "timing");
+	private static final File cifar10timingOutput = new File(Main.timingOutput, "cifar10");
+	private static final File TRC2timingOutput = new File(Main.timingOutput, "trc2");
+
+	private static final File memoryOutput = new File(Main.outputDir, "memory");
+	private static final File cifar10memoryOutput = new File(Main.memoryOutput, "cifar10");
+	private static final File TRC2memoryOutput = new File(Main.memoryOutput, "trc2");
+
+	static {
+		Main.createDirs(Main.dataDir, Main.outputDir, Main.exp1_4output);
+		Main.createDirs(Main.timingOutput, Main.cifar10timingOutput, Main.TRC2timingOutput);
+		Main.createDirs(Main.memoryOutput, Main.cifar10memoryOutput, Main.TRC2memoryOutput);
+	}
+
+	public static void main(String[] args) throws Exception {
+		String action = args[0];
+		switch (action) {
+		case "preprocess":
+			File cifar10Directory = new File(args[1]);
+			File TRC2CSVFile = new File(args[2]);
+			Main.preprocess(cifar10Directory, TRC2CSVFile);
+			break;
+		case "BkJDR":
+			Main.performBkAndJDRExperiments();
+			break;
+		case "time":
+			Main.performSmallTimeExperiments();
+			break;
+		case "memory":
+			Main.performSmallMemoryExperiments();
+			break;
+		case "TRC2TimeLarge":
+			int amount = Integer.parseInt(args[1]);
+			Main.performLargeTRC2TimeExperiment(amount);
+			break;
+		case "TRC2MemoryLarge":
+			amount = Integer.parseInt(args[1]);
+			Main.performLargeTRC2MemoryExperiment(amount);	
+		default:
+			System.out.println("Uknown experiment + '" + action + "' //first command line argument");
+			System.out.println("Only knows : " + "preprocess" + " BkJDR" + " time" + " memory");
+		}
+	}
+
+	private static void preprocess(File cifar10Directory, File TRC2) throws IOException {
+		System.out.println("Preprocessing datasets.");
+
+		//cifar10 does not have to be modified, just append each batch directly
+		try (FileOutputStream cifarWriter = new FileOutputStream(Main.cifar10Data)) {
+			for (String batch : new String[] { "data_batch_1.bin", "data_batch_2.bin", "data_batch_3.bin", "data_batch_4.bin", "data_batch_5.bin", "test_batch.bin" }) {
+				Files.copy(new File(cifar10Directory, batch), cifarWriter);
+			}
+			cifarWriter.flush();
+		}
+
+		//TRC2 must be preprocessed
+		PreprocessTRC2.preprocess(TRC2, Main.TRC2Data);
+	}
+
+	private static void performBkAndJDRExperiments() throws IOException {
+		BkAndJDRExperiments.performExperiment1till4(Main.cifar10Data, Main.TRC2Data, Main.exp1_4_cifar_output, Main.exp1_4_TRC2output);
+	}
+
+	private static void performSmallTimeExperiments() throws IOException {
+		TimingLargeRun.runCifar10(Main.cifar10Data, Main.cifar10timingOutput);
+		int[] amounts = new int[] {/* warmup */10000, 50000, 100000, 150000, 200000, 250000, 300000, 350000, 400000, 450000, 500000 };
+		TimingLargeRun.runReuters(Main.TRC2Data, Main.TRC2timingOutput, amounts);
+	}
+
+	private static void performSmallMemoryExperiments() throws IOException {
+		MemoryLargeRun.runCifar10(Main.cifar10Data, Main.cifar10memoryOutput);
+		int[] amounts = new int[] { 50000, 100000, 150000, 200000, 250000, 300000, 350000, 400000, 450000, 500000 };
+		MemoryLargeRun.runReuters(Main.TRC2Data, Main.TRC2memoryOutput, amounts);
+	}
+
+	private static void performLargeTRC2TimeExperiment(int amount) throws IOException {
+		int[] amounts = new int[] {/* warmup */10000, amount};
+		TimingLargeRun.runReuters(Main.TRC2Data, Main.TRC2timingOutput, amounts);
+	}
+	
+	private static void performLargeTRC2MemoryExperiment(int amount) throws IOException {
+		int[] amounts = new int[] {amount};
+		MemoryLargeRun.runReuters(Main.TRC2Data, Main.TRC2timingOutput, amounts);
+	}
+}
