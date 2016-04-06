@@ -2,6 +2,8 @@ This repository contains the files needed for repoducing the results of the
 "Twister Tries: Approximate Hierarchical Agglomerative Clustering for Average Distance in Linear Time"
 presented at SIGMOD'15
 
+If you plan to use this code for your own experiments, check http://users.jyu.fi/~miselico/software for newer versions or contact the first author of the paper.
+
 Contents of the repository
 =======================
 * README.md : This file
